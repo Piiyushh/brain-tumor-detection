@@ -115,14 +115,23 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
 
+        print("========== REGISTER ATTEMPT ==========")
+        print("USERNAME:", username)
+        print("PASSWORD:", password)
+
         existing_user = User.query.filter_by(
             username=username
         ).first()
 
+        print("EXISTING USER:", existing_user)
+
         if existing_user:
+            print("USER ALREADY EXISTS")
             return "User already exists"
 
         hashed_password = generate_password_hash(password)
+
+        print("HASHED PASSWORD:", hashed_password)
 
         user = User(
             username=username,
@@ -131,6 +140,8 @@ def register():
 
         db.session.add(user)
         db.session.commit()
+
+        print("USER REGISTERED SUCCESSFULLY")
 
         return redirect("/login")
 
@@ -147,18 +158,42 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
+        print("========== LOGIN ATTEMPT ==========")
+        print("USERNAME:", username)
+        print("PASSWORD:", password)
+
         user = User.query.filter_by(
             username=username
         ).first()
 
-        if user and check_password_hash(
-            user.password,
-            password
-        ):
+        print("USER FOUND:", user)
 
-            session["user"] = username
+        if user:
 
-            return redirect("/detect")
+            print("HASH IN DATABASE:", user.password)
+
+            password_match = check_password_hash(
+                user.password,
+                password
+            )
+
+            print("PASSWORD MATCH:", password_match)
+
+            if password_match:
+
+                session["user"] = username
+
+                print("LOGIN SUCCESS")
+
+                return redirect("/detect")
+
+            else:
+                print("WRONG PASSWORD")
+
+        else:
+            print("USER DOES NOT EXIST")
+
+        print("LOGIN FAILED")
 
         return "Invalid credentials"
 
