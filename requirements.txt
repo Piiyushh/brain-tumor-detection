@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+torch
+torchvision
+efficientnet-pytorch
+Pillow
+numpy
+opencv-python-headless
+pytz
+gunicorn

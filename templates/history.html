@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="card" style="width:600px;">
+        <h2>Your Prediction History</h2>
+
+        {% if history %}
+
+            {% for item in history %}
+                <div style="
+                    margin:20px 0;
+                    padding:15px;
+                    border-bottom:1px solid rgba(255,255,255,0.2);
+                    text-align:left;
+                ">
+
+                    <p>
+                        <b>Date:</b>
+                        {{ item.created_at.strftime('%d %b %Y | %I:%M %p') }}
+                    </p>
+
+                    <p>
+                        <b>Result:</b>
+                        {{ item.result.replace('_',' ') | title }}
+                    </p>
+
+                    <p>
+                        <b>Confidence:</b>
+                        {{ item.confidence }}%
+                    </p>
+
+                </div>
+            {% endfor %}
+
+        {% else %}
+            <p>No history yet.</p>
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <!-- ===== UPLOAD CARD ===== -->
+    <div class="card">
+        <h2>Upload MRI Scan</h2>
+
+        <form method="POST" enctype="multipart/form-data" onsubmit="showLoader()">
+            <input type="file" name="image" required>
+
+            <select name="model">
+                <option value="efficientnet">EfficientNet</option>
+                <option value="resnet">ResNet</option>
+            </select>
+
+            <button type="submit">Analyze MRI</button>
+        </form>
+    </div>
+
+    <!-- ===== RESULT ===== -->
+    {% if prediction %}
+    <div class="card result-card">
+
+        <h2>Uploaded Image</h2>
+        <img src="{{ image }}" class="preview-img">
+
+        <p class="prediction-text">
+            Result: {{ prediction.replace('_',' ') }}
+        </p>
+
+        <p class="confidence-text">
+            Confidence: {{ confidence }}%
+        </p>
+
+        {% if gradcam %}
+            <h2 style="margin-top:20px;">Grad-CAM</h2>
+            <img src="{{ gradcam }}" class="preview-img">
+
+            <p style="margin-top:10px; font-size:14px; opacity:0.8;">
+                *Highlights regions used by the model for prediction
+            </p>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- ===== LOADER (HIDDEN BY DEFAULT) ===== -->
+<div id="loader" class="loader-container" style="display:none;">
+    <div class="spinner"></div>
+    <p>Analyzing MRI... Please wait</p>
+</div>
+
+<!-- ===== SCRIPT ===== -->
+<script>
+function showLoader() {
+    document.getElementById("loader").style.display = "flex";
+}
+</script>
+
+{% endblock %}

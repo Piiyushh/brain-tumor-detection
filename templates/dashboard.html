@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="card" style="width:600px;">
+        <h2>Dashboard</h2>
+
+        <div style="margin-top:20px; text-align:left;">
+
+            <p><b>Total Scans:</b> {{ total }}</p>
+
+            <p style="color:#ff4d4d;">
+                <b>Tumor Detected:</b> {{ tumor }}
+            </p>
+
+            <p style="color:#2ecc71;">
+                <b>No Tumor:</b> {{ no_tumor }}
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
