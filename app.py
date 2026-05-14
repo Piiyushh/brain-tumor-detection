@@ -11,11 +11,16 @@ from PIL import Image
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 import os
+import gc
 
 # ================= PERFORMANCE =================
 
 os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 torch.set_num_threads(1)
+
+device = torch.device("cpu")
 
 # ================= APP =================
 
@@ -56,32 +61,26 @@ classes = [
     'pituitary_tumor'
 ]
 
-model = None
+print("========== LOADING MODEL ==========")
 
-def load_model():
+model = EfficientNet.from_name('efficientnet-b0')
 
-    global model
+model._fc = nn.Linear(
+    model._fc.in_features,
+    4
+)
 
-    if model is None:
+model.load_state_dict(
+    torch.load(
+        "model/brain_tumor_model.pth",
+        map_location=device
+    )
+)
 
-        model = EfficientNet.from_name('efficientnet-b0')
+model.to(device)
+model.eval()
 
-        model._fc = nn.Linear(
-            model._fc.in_features,
-            4
-        )
-
-        model.load_state_dict(
-            torch.load(
-                "model/brain_tumor_model.pth",
-                map_location="cpu"
-            )
-        )
-
-        model.eval()
-
-    return model
-
+print("========== MODEL LOADED ==========")
 
 # ================= IMAGE TRANSFORM =================
 
@@ -115,23 +114,14 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
 
-        print("========== REGISTER ATTEMPT ==========")
-        print("USERNAME:", username)
-        print("PASSWORD:", password)
-
         existing_user = User.query.filter_by(
             username=username
         ).first()
 
-        print("EXISTING USER:", existing_user)
-
         if existing_user:
-            print("USER ALREADY EXISTS")
             return "User already exists"
 
         hashed_password = generate_password_hash(password)
-
-        print("HASHED PASSWORD:", hashed_password)
 
         user = User(
             username=username,
@@ -140,8 +130,6 @@ def register():
 
         db.session.add(user)
         db.session.commit()
-
-        print("USER REGISTERED SUCCESSFULLY")
 
         return redirect("/login")
 
@@ -158,42 +146,15 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        print("========== LOGIN ATTEMPT ==========")
-        print("USERNAME:", username)
-        print("PASSWORD:", password)
-
         user = User.query.filter_by(
             username=username
         ).first()
 
-        print("USER FOUND:", user)
+        if user and check_password_hash(user.password, password):
 
-        if user:
+            session["user"] = username
 
-            print("HASH IN DATABASE:", user.password)
-
-            password_match = check_password_hash(
-                user.password,
-                password
-            )
-
-            print("PASSWORD MATCH:", password_match)
-
-            if password_match:
-
-                session["user"] = username
-
-                print("LOGIN SUCCESS")
-
-                return redirect("/detect")
-
-            else:
-                print("WRONG PASSWORD")
-
-        else:
-            print("USER DOES NOT EXIST")
-
-        print("LOGIN FAILED")
+            return redirect("/detect")
 
         return "Invalid credentials"
 
@@ -224,45 +185,56 @@ def detect():
 
     if request.method == "POST":
 
-        file = request.files.get("image")
+        try:
 
-        if not file:
-            return "No image uploaded"
+            file = request.files.get("image")
 
-        img_pil = Image.open(file).convert("RGB")
+            if not file:
+                return "No image uploaded"
 
-        image_path = os.path.join(
-            UPLOAD_FOLDER,
-            "uploaded.jpg"
-        )
+            img_pil = Image.open(file).convert("RGB")
 
-        img_pil.save(image_path)
+            image_path = os.path.join(
+                UPLOAD_FOLDER,
+                "uploaded.jpg"
+            )
 
-        img_tensor = transform(img_pil).unsqueeze(0)
+            img_pil.save(image_path)
 
-        model = load_model()
+            img_tensor = transform(img_pil).unsqueeze(0).to(device)
 
-        with torch.no_grad():
+            with torch.no_grad():
 
-            outputs = model(img_tensor)
+                outputs = model(img_tensor)
 
-            probs = F.softmax(outputs, dim=1)
+                probs = F.softmax(outputs, dim=1)
 
-            conf, pred = torch.max(probs, 1)
+                conf, pred = torch.max(probs, 1)
 
-        prediction = classes[pred.item()]
-        confidence = round(conf.item() * 100, 2)
+            prediction = classes[pred.item()]
+            confidence = round(conf.item() * 100, 2)
 
-        # ================= SAVE HISTORY =================
+            # ================= SAVE HISTORY =================
 
-        entry = Prediction(
-            username=session["user"],
-            result=prediction,
-            confidence=confidence
-        )
+            entry = Prediction(
+                username=session["user"],
+                result=prediction,
+                confidence=confidence
+            )
 
-        db.session.add(entry)
-        db.session.commit()
+            db.session.add(entry)
+            db.session.commit()
+
+            # cleanup memory
+            del img_tensor
+            gc.collect()
+
+        except Exception as e:
+
+            print("========== DETECTION ERROR ==========")
+            print(str(e))
+
+            return f"Detection Error: {str(e)}"
 
     return render_template(
         "detect.html",
